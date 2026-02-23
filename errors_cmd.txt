@@ -1,0 +1,10 @@
+app/page.tsx(188,51): error TS7006: Parameter 'd' implicitly has an 'any' type.
+drizzle.config.ts(1,30): error TS2307: Cannot find module 'drizzle-kit' or its corresponding type declarations.
+lib/env.ts(2,22): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+lib/env.ts(3,29): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+lib/env.ts(4,28): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+lib/env.ts(5,31): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+lib/env.ts(6,28): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+lib/env.ts(7,29): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+lib/env.ts(8,28): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+lib/env.ts(9,28): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
