@@ -134,14 +134,19 @@ export function PiAuthProvider({ children }: { children: ReactNode }) {
   };
 
   const initializePiAndAuthenticate = async () => {
-    // Local development bypass (outside Pi Sandbox)
-    if (process.env.NODE_ENV === "development" && !window.navigator.userAgent.includes("PiBrowser")) {
-      console.log("🛠️ Local Dev Mode: Bypassing Pi Auth");
+    // Bypass when not inside Pi Browser (works in any environment)
+    const isPiBrowser = typeof window !== "undefined" && (
+      window.navigator.userAgent.includes("PiBrowser") ||
+      typeof window.Pi !== "undefined"
+    );
+
+    if (!isPiBrowser) {
+      console.log("🌐 Non-Pi Browser: Bypassing Pi Auth - app running in standard mode");
       setIsAuthenticated(true);
       setUserData({
-        id: "local_dev_user",
-        username: "dev_user",
-        credits_balance: 100,
+        id: "guest_user",
+        username: "guest",
+        credits_balance: 0,
         terms_accepted: true,
       });
       return;
