@@ -29,10 +29,53 @@ declare global {
   interface Window {
     Pi: {
       init: (config: { version: string; sandbox?: boolean }) => Promise<void>;
-      authenticate: (scopes: string[]) => Promise<PiAuthResult>;
+      authenticate: (
+        scopes: string[],
+        onIncompletePaymentFound?: (payment: PiPayment) => void
+      ) => Promise<PiAuthResult>;
+      createPayment: (
+        paymentData: PiPaymentData,
+        callbacks: PiPaymentCallbacks
+      ) => void;
     };
   }
 }
+
+export type PiPaymentData = {
+  amount: number;
+  memo: string;
+  metadata: Record<string, unknown>;
+};
+
+export type PiPayment = {
+  identifier: string;
+  user_uid: string;
+  amount: number;
+  memo: string;
+  metadata: Record<string, unknown>;
+  from_address: string;
+  to_address: string;
+  direction: string;
+  status: {
+    developer_approved: boolean;
+    transaction_verified: boolean;
+    developer_completed: boolean;
+    cancelled: boolean;
+    user_cancelled: boolean;
+  };
+  transaction: null | {
+    txid: string;
+    verified: boolean;
+    _link: string;
+  };
+};
+
+export type PiPaymentCallbacks = {
+  onReadyForServerApproval: (paymentId: string) => void;
+  onReadyForServerCompletion: (paymentId: string, txid: string) => void;
+  onCancel: (paymentId: string) => void;
+  onError: (error: Error, payment?: PiPayment) => void;
+};
 
 interface PiAuthContextType {
   isAuthenticated: boolean;

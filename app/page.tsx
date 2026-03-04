@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { trpc } from "@/lib/trpc"
 import { usePiAuth } from "@/contexts/pi-auth-context"
+import { usePiPayment } from "@/hooks/usePiPayment"
 
 type Driver = {
   id: number
@@ -45,8 +46,17 @@ const translations = {
     destination: "الوجهة",
     selectDestination: "إلى أين تريد الذهاب؟",
     payment: "الدفع",
+    paymentCash: "نقداً عند الوصول",
+    paymentPi: "الدفع بعملة π",
+    paymentPiDesc: "ادفع بـ Pi Network",
+    paymentCashDesc: "نقداً عند الوصول",
     piNetwork: "Pi Network",
     piPayment: "الدفع بعملة π",
+    piPaying: "جاري الدفع بـ Pi...",
+    piSuccess: "تم الدفع بنجاح بـ π",
+    piCancelled: "تم إلغاء الدفع",
+    piError: "فشل الدفع، حاول مجدداً",
+    selectPayment: "اختر طريقة الدفع",
     searchDriver: "ابحث عن سائق",
     searching: "جاري البحث...",
     availableDrivers: "السائقون المتاحون",
@@ -112,8 +122,17 @@ const translations = {
     destination: "Destination",
     selectDestination: "Where to?",
     payment: "Payment",
+    paymentCash: "Cash on arrival",
+    paymentPi: "Pay with π",
+    paymentPiDesc: "Pay via Pi Network",
+    paymentCashDesc: "Cash on arrival",
     piNetwork: "Pi Network",
     piPayment: "Pay with π",
+    piPaying: "Paying with Pi...",
+    piSuccess: "Payment successful with π",
+    piCancelled: "Payment cancelled",
+    piError: "Payment failed, try again",
+    selectPayment: "Select payment method",
     searchDriver: "Find Driver",
     searching: "Searching...",
     availableDrivers: "Available Drivers",
@@ -204,6 +223,10 @@ export default function TikTikPremium() {
   const [chatMessages, setChatMessages] = useState<Array<{ sender: "customer" | "driver"; text: string }>>([])
   const [chatInput, setChatInput] = useState("")
   const [currentDriver, setCurrentDriver] = useState<Driver | null>(null)
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "pi">("cash")
+  const [piPaymentStatus, setPiPaymentStatus] = useState<"idle" | "processing" | "success" | "cancelled" | "error">("idle")
+
+  const { payWithPi, isLoading: piIsLoading } = usePiPayment()
 
   const t = translations[language]
   const isRTL = language === "ar"
@@ -451,7 +474,40 @@ export default function TikTikPremium() {
     const driver = drivers.find((d) => d.id === driverId)
     if (!driver) return
     setCurrentDriver(driver)
-    showNotification(`${t.connectingDriver} ${driver.name}...`, "info")
+
+    if (paymentMethod === "pi") {
+      // Pi Payment Flow
+      showNotification(
+        language === "ar" ? "جاري فتح Pi Wallet..." : "Opening Pi Wallet...",
+        "info"
+      )
+      setPiPaymentStatus("processing")
+
+      const piAmount = Number(driver.price) || 1
+      const result = await payWithPi(
+        piAmount,
+        language === "ar"
+          ? `تك تك - رحلة من ${pickupLocation?.address?.substring(0, 30)} إلى ${destinationLocation?.address?.substring(0, 30)}`
+          : `TekTek ride from ${pickupLocation?.address?.substring(0, 30)} to ${destinationLocation?.address?.substring(0, 30)}`,
+        { tripId: 0, driverId }
+      )
+
+      if (!result.success) {
+        if (result.error === "Payment cancelled by user") {
+          setPiPaymentStatus("cancelled")
+          showNotification(t.piCancelled, "error")
+        } else {
+          setPiPaymentStatus("error")
+          showNotification(t.piError, "error")
+        }
+        return
+      }
+
+      setPiPaymentStatus("success")
+      showNotification(t.piSuccess, "success")
+    } else {
+      showNotification(`${t.connectingDriver} ${driver.name}...`, "info")
+    }
 
     // Create the trip in the backend
     try {
@@ -614,21 +670,84 @@ export default function TikTikPremium() {
                 <div ref={destinationMapRef} className="h-48 rounded-xl overflow-hidden border border-border-bright"></div>
               </div>
 
-              {/* Payment - كاش فقط */}
-              <div className="glass p-4 rounded-xl flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-green-400 flex items-center justify-center shadow-lg">
-                  <i className="fas fa-money-bill-wave text-white text-xl"></i>
+              {/* Payment Method Selection */}
+              <div className="space-y-3">
+                <p className="text-sm font-semibold text-foreground-muted flex items-center gap-2">
+                  <i className="fas fa-wallet text-accent-yellow text-xs"></i>
+                  {t.selectPayment}
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Cash Option */}
+                  <button
+                    onClick={() => setPaymentMethod("cash")}
+                    className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${paymentMethod === "cash"
+                        ? "border-green-500 bg-green-500/10"
+                        : "border-border-bright glass hover:border-green-500/50"
+                      }`}
+                  >
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${paymentMethod === "cash" ? "bg-green-500" : "bg-surface-elevated"
+                      }`}>
+                      <i className={`fas fa-money-bill-wave text-lg ${paymentMethod === "cash" ? "text-white" : "text-green-400"
+                        }`}></i>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-bold">{language === "ar" ? "نقداً" : "Cash"}</p>
+                      <p className="text-xs text-foreground-muted">{t.paymentCashDesc}</p>
+                    </div>
+                    {paymentMethod === "cash" && (
+                      <span className="badge badge-success text-xs">{t.selected}</span>
+                    )}
+                  </button>
+
+                  {/* Pi Network Option */}
+                  <button
+                    onClick={() => setPaymentMethod("pi")}
+                    className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${paymentMethod === "pi"
+                        ? "border-accent-yellow bg-accent-yellow/10"
+                        : "border-border-bright glass hover:border-accent-yellow/50"
+                      }`}
+                  >
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${paymentMethod === "pi" ? "bg-gradient-to-br from-accent-yellow to-accent-yellow-bright" : "bg-surface-elevated"
+                      }`}>
+                      <span className={`text-xl font-black ${paymentMethod === "pi" ? "text-background" : "text-accent-yellow"
+                        }`}>π</span>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-bold">Pi Network</p>
+                      <p className="text-xs text-foreground-muted">{t.paymentPiDesc}</p>
+                    </div>
+                    {paymentMethod === "pi" && (
+                      <span className="badge badge-yellow text-xs">{t.selected}</span>
+                    )}
+                  </button>
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold">{t.payment}</p>
-                  <p className="text-xs text-foreground-muted">
-                    {language === "ar" ? "الدفع نقداً عند الوصول" : "Cash payment on arrival"}
-                  </p>
-                </div>
-                <span className="badge badge-yellow">{t.selected}</span>
+
+                {/* Pi payment status indicator */}
+                {piPaymentStatus === "processing" && (
+                  <div className="glass p-3 rounded-xl flex items-center gap-3 border border-accent-yellow/30">
+                    <div className="loading-spinner"></div>
+                    <p className="text-sm text-accent-yellow font-semibold">{t.piPaying}</p>
+                  </div>
+                )}
+                {piPaymentStatus === "success" && (
+                  <div className="glass p-3 rounded-xl flex items-center gap-3 border border-green-500/30">
+                    <i className="fas fa-check-circle text-green-400 text-lg"></i>
+                    <p className="text-sm text-green-400 font-semibold">{t.piSuccess}</p>
+                  </div>
+                )}
+                {piPaymentStatus === "error" && (
+                  <div className="glass p-3 rounded-xl flex items-center gap-3 border border-red-500/30">
+                    <i className="fas fa-times-circle text-red-400 text-lg"></i>
+                    <p className="text-sm text-red-400 font-semibold">{t.piError}</p>
+                  </div>
+                )}
               </div>
 
-              <button onClick={searchForDrivers} disabled={searching} className="btn-primary w-full py-4 rounded-xl text-lg font-bold flex items-center justify-center gap-3">
+              <button
+                onClick={searchForDrivers}
+                disabled={searching || piIsLoading}
+                className="btn-primary w-full py-4 rounded-xl text-lg font-bold flex items-center justify-center gap-3"
+              >
                 {searching ? (
                   <>
                     <div className="loading-spinner"></div>

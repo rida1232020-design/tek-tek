@@ -116,7 +116,7 @@ export const trips = mysqlTable("trips", {
   ]).default("pending"),
 
   // الدفع - نقداً فقط
-  paymentMethod: mysqlEnum("paymentMethod", ["cash"]).default("cash").notNull(),
+  paymentMethod: mysqlEnum("paymentMethod", ["cash", "pi"]).default("cash").notNull(),
   isPaid: boolean("isPaid").default(false),
 
   // التواريخ
@@ -165,8 +165,10 @@ export const payments = mysqlTable("payments", {
   driverId: int("driverId").notNull(),
   amount: decimal("amount", { precision: 8, scale: 2 }).notNull(),
   currency: varchar("currency", { length: 10 }).default("DZD"),
-  paymentMethod: mysqlEnum("paymentMethod", ["cash"]).default("cash").notNull(),
-  status: mysqlEnum("status", ["pending", "completed", "refunded"]).default("pending"),
+  paymentMethod: mysqlEnum("paymentMethod", ["cash", "pi"]).default("cash").notNull(),
+  piPaymentId: varchar("piPaymentId", { length: 255 }),   // Pi payment identifier
+  piTxId: varchar("piTxId", { length: 255 }),             // Pi blockchain transaction ID
+  status: mysqlEnum("status", ["pending", "completed", "cancelled", "refunded"]).default("pending"),
   paidAt: timestamp("paidAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, (table: any) => ({
