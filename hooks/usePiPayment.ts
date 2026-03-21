@@ -23,6 +23,53 @@ interface UsePiPaymentResult {
     reset: () => void;
 }
 
+/** Generate a mock payment/tx id for sandbox simulation */
+const mockId = () => Math.random().toString(36).slice(2, 18).toUpperCase();
+
+/** Simulate the Pi payment flow when outside Pi Browser (sandbox demo mode) */
+async function simulatePiPayment(
+    amount: number,
+    memo: string,
+    metadata: Record<string, unknown>,
+    setStatus: (s: PaymentStatus) => void
+): Promise<{ success: boolean; txid?: string; error?: string }> {
+    const paymentId = mockId();
+    const txid = "SANDBOX_TX_" + mockId();
+
+    try {
+        // Step 1: Approve (server-side)
+        setStatus("waiting_approval");
+        await fetch("/api/pi/approve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paymentId, amount, currency: "PI", ...metadata }),
+        }).catch(() => { /* non-critical in sandbox */ });
+
+        // Step 2: Simulate user confirming in wallet (1.8s delay)
+        setStatus("waiting_user");
+        await new Promise((r) => setTimeout(r, 1800));
+
+        // Step 3: Complete (server-side)
+        setStatus("waiting_completion");
+        await fetch("/api/pi/complete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                paymentId,
+                txid,
+                ...(metadata.tripId ? { tripId: metadata.tripId } : {}),
+            }),
+        }).catch(() => { /* non-critical in sandbox */ });
+
+        await new Promise((r) => setTimeout(r, 400));
+        setStatus("completed");
+        return { success: true, txid };
+    } catch (err) {
+        setStatus("error");
+        return { success: false, error: String(err) };
+    }
+}
+
 export function usePiPayment(): UsePiPaymentResult {
     const [status, setStatus] = useState<PaymentStatus>("idle");
 
@@ -40,11 +87,10 @@ export function usePiPayment(): UsePiPaymentResult {
             metadata: Record<string, unknown> = {}
         ): Promise<{ success: boolean; txid?: string; error?: string }> => {
             return new Promise((resolve) => {
-                // Check if Pi SDK is available
+                // If Pi SDK not available → use sandbox simulation mode
                 if (typeof window === "undefined" || !window.Pi) {
-                    console.error("Pi SDK not available");
-                    setStatus("error");
-                    resolve({ success: false, error: "Pi SDK not available" });
+                    console.log("🧪 Pi SDK not found — running in sandbox simulation mode");
+                    simulatePiPayment(amount, memo, metadata, setStatus).then(resolve);
                     return;
                 }
 

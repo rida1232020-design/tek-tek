@@ -270,10 +270,11 @@ export default function TikTikPremium() {
     }
   }, [])
 
-  const initMap = (mapRef: any, mapInstance: any, marker: any, location: LocationCoords | null) => {
+  const initMap = (mapRef: any, mapInstance: any, marker: any, location: LocationCoords | null, fallbackLocation?: LocationCoords | null) => {
     if (!mapLoaded || !mapRef.current || mapInstance.current || !window.L) return
 
-    const defaultCenter = location || { lat: 31.9454, lng: 35.9284, address: "" }
+    // Use location, then fallbackLocation (pickup area), then default coords
+    const defaultCenter = location || fallbackLocation || { lat: 31.9454, lng: 35.9284, address: "" }
     const map = window.L.map(mapRef.current, {
       zoomControl: false,
       attributionControl: false,
@@ -336,7 +337,8 @@ export default function TikTikPremium() {
     if (screen === "customer" && mapLoaded) {
       setTimeout(() => {
         if (!pickupMapInstance.current) initMap(pickupMapRef, pickupMapInstance, pickupMarker, pickupLocation)
-        if (!destinationMapInstance.current) initMap(destinationMapRef, destinationMapInstance, destinationMarker, destinationLocation)
+        // Destination map centers on pickup location if no destination yet (shows rider's area)
+        if (!destinationMapInstance.current) initMap(destinationMapRef, destinationMapInstance, destinationMarker, destinationLocation, pickupLocation)
       }, 100)
     }
   }, [screen, mapLoaded])
@@ -483,7 +485,8 @@ export default function TikTikPremium() {
       )
       setPiPaymentStatus("processing")
 
-      const piAmount = Number(driver.price) || 1
+      // Fixed Pi payment amount: 0.02 π (sandbox/testnet amount)
+      const piAmount = 0.02
       const result = await payWithPi(
         piAmount,
         language === "ar"
@@ -802,7 +805,9 @@ export default function TikTikPremium() {
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-accent-yellow mb-1">{driver.price}π</div>
+                      <div className="text-2xl font-bold text-accent-yellow mb-1">
+                        {paymentMethod === "pi" ? "0.02π" : `${driver.price} ${language === "ar" ? "دج" : "DZD"}`}
+                      </div>
                       <button onClick={() => selectDriver(driver.id)} className="btn-primary px-6 py-2 rounded-lg text-sm font-bold whitespace-nowrap">
                         {t.selectDriver}
                       </button>
