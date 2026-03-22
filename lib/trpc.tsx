@@ -10,9 +10,6 @@ import { usePiAuth } from "@/contexts/pi-auth-context";
 export const trpc = createTRPCReact<AppRouter>();
 
 export function TRPCProvider({ children }: { children: React.ReactNode }) {
-    // It's safe to usePiAuth here because TRPCProvider is rendered inside PiAuthProvider
-    const { piAccessToken } = usePiAuth();
-
     const [queryClient] = useState(() => new QueryClient({
         defaultOptions: { queries: { staleTime: 5000 } }
     }));
@@ -22,9 +19,6 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
             links: [
                 httpBatchLink({
                     url: "/api/trpc",
-                    headers() {
-                        return piAccessToken ? { Authorization: piAccessToken } : {};
-                    },
                 }),
             ],
         })

@@ -1,5 +1,5 @@
 // SDK placeholder for OAuth and authentication
-// This will be replaced with actual Manus SDK integration
+
 
 export const sdk = {
   async authenticateRequest(_req: any) {

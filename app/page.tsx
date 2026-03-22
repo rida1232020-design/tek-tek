@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { trpc } from "@/lib/trpc"
-import { usePiAuth } from "@/contexts/pi-auth-context"
-import { usePiPayment } from "@/hooks/usePiPayment"
+
 
 type Driver = {
   id: number
@@ -223,10 +222,8 @@ export default function TikTikPremium() {
   const [chatMessages, setChatMessages] = useState<Array<{ sender: "customer" | "driver"; text: string }>>([])
   const [chatInput, setChatInput] = useState("")
   const [currentDriver, setCurrentDriver] = useState<Driver | null>(null)
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "pi">("cash")
-  const [piPaymentStatus, setPiPaymentStatus] = useState<"idle" | "processing" | "success" | "cancelled" | "error">("idle")
+  const [paymentMethod, setPaymentMethod] = useState<"cash">("cash")
 
-  const { payWithPi, isLoading: piIsLoading } = usePiPayment()
 
   const t = translations[language]
   const isRTL = language === "ar"
@@ -701,54 +698,12 @@ export default function TikTikPremium() {
                       <span className="badge badge-success text-xs">{t.selected}</span>
                     )}
                   </button>
-
-                  {/* Pi Network Option */}
-                  <button
-                    onClick={() => setPaymentMethod("pi")}
-                    className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${paymentMethod === "pi"
-                        ? "border-accent-yellow bg-accent-yellow/10"
-                        : "border-border-bright glass hover:border-accent-yellow/50"
-                      }`}
-                  >
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${paymentMethod === "pi" ? "bg-gradient-to-br from-accent-yellow to-accent-yellow-bright" : "bg-surface-elevated"
-                      }`}>
-                      <span className={`text-xl font-black ${paymentMethod === "pi" ? "text-background" : "text-accent-yellow"
-                        }`}>π</span>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm font-bold">Pi Network</p>
-                      <p className="text-xs text-foreground-muted">{t.paymentPiDesc}</p>
-                    </div>
-                    {paymentMethod === "pi" && (
-                      <span className="badge badge-yellow text-xs">{t.selected}</span>
-                    )}
-                  </button>
                 </div>
-
-                {/* Pi payment status indicator */}
-                {piPaymentStatus === "processing" && (
-                  <div className="glass p-3 rounded-xl flex items-center gap-3 border border-accent-yellow/30">
-                    <div className="loading-spinner"></div>
-                    <p className="text-sm text-accent-yellow font-semibold">{t.piPaying}</p>
-                  </div>
-                )}
-                {piPaymentStatus === "success" && (
-                  <div className="glass p-3 rounded-xl flex items-center gap-3 border border-green-500/30">
-                    <i className="fas fa-check-circle text-green-400 text-lg"></i>
-                    <p className="text-sm text-green-400 font-semibold">{t.piSuccess}</p>
-                  </div>
-                )}
-                {piPaymentStatus === "error" && (
-                  <div className="glass p-3 rounded-xl flex items-center gap-3 border border-red-500/30">
-                    <i className="fas fa-times-circle text-red-400 text-lg"></i>
-                    <p className="text-sm text-red-400 font-semibold">{t.piError}</p>
-                  </div>
-                )}
               </div>
 
               <button
                 onClick={searchForDrivers}
-                disabled={searching || piIsLoading}
+                disabled={searching}
                 className="btn-primary w-full py-4 rounded-xl text-lg font-bold flex items-center justify-center gap-3"
               >
                 {searching ? (
@@ -806,7 +761,7 @@ export default function TikTikPremium() {
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-accent-yellow mb-1">
-                        {paymentMethod === "pi" ? "0.02π" : `${driver.price} ${language === "ar" ? "دج" : "DZD"}`}
+                        {driver.price} {language === "ar" ? "دج" : "DZD"}
                       </div>
                       <button onClick={() => selectDriver(driver.id)} className="btn-primary px-6 py-2 rounded-lg text-sm font-bold whitespace-nowrap">
                         {t.selectDriver}
